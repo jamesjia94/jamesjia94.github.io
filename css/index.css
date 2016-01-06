@@ -1,0 +1,206 @@
+body {
+    position: relative;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 1.5em;
+}
+
+footer {
+  background: #333;
+  color: #eee;
+  font-size: 11px;
+  padding: 20px;
+}
+
+hr {
+  border-top-color: #555;
+}
+
+ul {
+  padding-left: 0px;
+}
+
+/* Fonts */
+.font-roboto {
+  font-family: 'Roboto', sans-serif;
+}
+
+.no-left-padding {
+    padding-left: 0px;
+}
+
+/* Carousel */
+.carousel-control.left, .carousel-control.right {
+    background-image: none
+}
+
+#share-carousel {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    height: 410px;
+    width: 320px;
+}
+
+#share-carousel .item { 
+    height: 400px;
+    width: 320px;
+}
+
+#learn-algebra-carousel {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    height: 500px;
+    width: 300px;
+}
+
+#learn-algebra-carousel .item { 
+    height: 500px;
+    width: 300px;
+}
+
+.carousel-control .icon-prev, .carousel-control .icon-next{
+    position: absolute;
+    color: black;
+}
+
+.carousel-control .icon-prev {
+    left: -50%
+}
+
+.carousel-control .icon-next{
+    right: -50%
+}
+
+.carousel-indicators {
+    bottom: -6.5%;
+}
+
+.carousel-indicators li{
+    background-color: #999;
+}
+
+.carousel-indicators .active {
+  background-color: #444;
+}
+
+.carousel-inner>.item {
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    background-size: cover;
+}
+
+#shareSlide1 {
+    background: url('/assets/share/logo.png') top center no-repeat;
+}
+
+#shareSlide2 {
+    background: url('/assets/share/new_connection.gif') top center no-repeat;
+}
+
+#shareSlide3 {
+    background: url('/assets/share/view_doc.gif') top center no-repeat;
+}
+
+#shareSlide4 {
+    background: url('/assets/share/alison_read_notification.gif') top center no-repeat;
+}
+
+#shareSlide5 {
+    background: url('/assets/share/view_metadata.gif') top center no-repeat;
+}
+
+#learnAlgebraSlide1 {
+    background: url('/assets/learn-algebra/LearnAlgebra1-small.jpg') center center no-repeat;
+}
+
+#learnAlgebraSlide2 {
+    background: url('/assets/learn-algebra/LearnAlgebra2-small.jpg') center center no-repeat;
+}
+
+#learnAlgebraSlide3 {
+    background: url('/assets/learn-algebra/LearnAlgebra3-small.jpg') center center no-repeat;
+}
+
+/* image icons */
+img.linkedin{
+    max-height: 30px;
+}
+
+img.github{
+    max-height: 30px;
+}
+
+/* Navbar header adjustments*/
+.navbar-brand {
+    padding: 13px 15px;
+}
+
+.navbar-brand img {
+    margin-top: -5px;
+}
+
+/* sidebar */
+.bs-docs-sidebar {
+  padding-left: 20px;
+}
+
+/* all links */
+.bs-docs-sidebar .nav>li>a {
+  color: #999;
+  padding: 4px 20px;
+  font-weight: 400;
+}
+
+/* Nested links */
+.bs-docs-sidebar .nav .nav>li>a {
+  padding-top: 1px;
+  padding-bottom: 1px;
+  padding-left: 30px;
+}
+
+/* hide all (inactive) nested list */
+.bs-docs-sidebar .nav ul.nav {
+  display: none;           
+}
+
+/* show active nested list */
+.bs-docs-sidebar .nav>.active>ul.nav {
+  display: block;           
+}
+
+.bs-docs-sidebar .nav>.active>a {  color: #563d7c; }
+
+/* Custom, iPhone Retina */ 
+@media screen and (min-width: 320px) {
+    body {
+        padding-top: 50px;
+    }
+
+    .bs-docs-sidebar{
+      display: none;
+    }
+
+    .bs-topbar>.navbar-collapse>ul{
+      overflow-y: auto;
+      max-height: 120px;
+    }
+}
+
+/* Medium Devices, Desktops */
+@media screen and (min-width : 768px) {
+    body {
+        padding-top: 0px;
+    }
+
+    .bs-docs-sidebar {
+      display: block;
+    }
+
+    .bs-topbar{
+      display:none;
+    }
+
+    img.github{
+        margin-left: 10px;
+    }
+}

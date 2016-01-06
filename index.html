@@ -1,0 +1,111 @@
+---
+    layout: base
+    # Set to nil because relative path doesn't work on root page.
+    anchor_prefix: ~ 
+---
+<section id="home">
+    <!-- Rich Text -->
+    <h2 class="font-roboto">About Me</h2>
+    <p itemscope itemtype="http://schema.org/Person">
+        I am <span itemprop="name">James Jia</span>, a Master's student with a concentration in Data Science and Systems at University of California, <span itemscope itemtype="http://schema.org/Organization"><span itemprop="name">Berkeley</span></span>.
+    </p>
+    <p>
+        Currently, I am working on porting <a href='https://github.com/BIDData'>BIDData</a> onto Apache Spark.
+    </p>
+    <p>
+        Last summer, I interned at <a href='https://www.box.com/'>Box</a> on the caching team, working on a distributed health check service for memcached called MCDoctor.
+    </p>
+    <p>
+        Before then, I worked at Apple as a software engineering intern where I designed a screen capturing module for multi-machine automation and a cross-functional reporting system for automated test results.
+    </p>
+</section> <!-- end home section -->
+
+<section id="projects">
+    <div id="learn-algebra">
+        <hr>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-3 col-sm-offset-2 no-left-padding">
+                    <h2 class="font-roboto">Learn Algebra</h2>
+                    <p>
+                        Learn Algebra is an Android application that features tailored lessons and algorithmically generated problems with step by step explanations.
+                    </p>
+                    <p>
+                        Learn more at <a href="http://exequals.org"> ExEquals </a>
+                    </p>
+                </div>
+                <div class="col-sm-5 col-sm-offset-1">
+                    <div class="carousel slide" id="learn-algebra-carousel">
+                        <!-- Indicators -->
+                        <ol class="carousel-indicators">
+                            <li class="active" data-slide-to="0" data-target="#learn-algebra-carousel"></li>
+                            <li data-slide-to="1" data-target="#learn-algebra-carousel"></li>
+                            <li data-slide-to="2" data-target="#learn-algebra-carousel"></li>
+                        </ol>
+
+                        <!-- Wrapper for slides -->
+                        <div class="carousel-inner">
+                            <div class="item active" id="learnAlgebraSlide1">
+                            </div><!-- end item -->
+                            <div class="item" id="learnAlgebraSlide2">
+                            </div><!-- end item -->
+                            <div class="item" id="learnAlgebraSlide3">
+                            </div><!-- end item -->
+                        </div> <!-- carousel-inner -->
+
+                        <!-- Controls -->
+                        <a class="left carousel-control" data-slide="prev" href="#learn-algebra-carousel"><span class="icon-prev"></span></a>
+                        <a class="right carousel-control" data-slide="next" href="#learn-algebra-carousel"><span class="icon-next"></span></a>
+                    </div> <!-- end learn-algebra-carousel -->
+                </div>
+            </div>
+        </div>
+    </div> <!-- end learn algebra section -->
+
+    <div id="share">
+        <hr>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-3 col-sm-offset-2 no-left-padding">
+                    <h2 class="font-roboto">Share</h2>
+                    <p>
+                        Share is an Android app for your watch and phone that enhances your social experience with creating new connections. It minimizes the awkwardness of exchanging contacts while maximizing engagement with the information they need right now. Share also gives unprecedented insight into how your audience is interacting with the content you shared.
+                    </p>
+                    <p>
+                        View the code on <a href="https://github.com/snehasankavaram/share">Github</a>!
+                    </p>
+                </div> <!-- end col-sm-3 -->
+                <div class="col-sm-5 col-sm-offset-1">
+                    <div class="carousel slide" id="share-carousel">
+                        <!-- Indicators -->
+                        <ol class="carousel-indicators">
+                            <li class="active" data-slide-to="0" data-target="#share-carousel"></li>
+                            <li data-slide-to="1" data-target="#share-carousel"></li>
+                            <li data-slide-to="2" data-target="#share-carousel"></li>
+                            <li data-slide-to="3" data-target="#share-carousel"></li>
+                            <li data-slide-to="4" data-target="#share-carousel"></li>
+                        </ol>
+
+                        <!-- Wrapper for slides -->
+                        <div class="carousel-inner">
+                            <div class="item active" id="shareSlide1">
+                            </div><!-- end item -->
+                            <div class="item" id="shareSlide2">
+                            </div><!-- end item -->
+                            <div class="item" id="shareSlide3">
+                            </div><!-- end item -->
+                            <div class="item" id="shareSlide4">
+                            </div><!-- end item -->
+                            <div class="item" id="shareSlide5">
+                            </div><!-- end item -->
+                        </div> <!-- carousel-inner -->
+
+                        <!-- Controls -->
+                        <a class="left carousel-control" data-slide="prev" href="#share-carousel"><span class="icon-prev"></span></a>
+                        <a class="right carousel-control" data-slide="next" href="#share-carousel"><span class="icon-next"></span></a>
+                    </div> <!-- end learn-algebra-carousel -->
+                </div> <!-- end col-sm-9 -->
+            </div> <!-- end row -->
+        </div> <!-- end container -->
+    </div> <!-- end Share -->
+</section> <!-- end projects -->
