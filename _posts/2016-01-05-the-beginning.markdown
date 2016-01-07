@@ -12,4 +12,5 @@ Currently, learning how to use Jekyll and remembering Markdown is quite a strugg
 [Jekyll Docs][jekyll]
 
 [markdown]: https://guides.github.com/features/mastering-markdown/
+
 [jekyll]: http://jekyllrb.com/docs/home/
