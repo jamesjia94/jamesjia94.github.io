@@ -9,8 +9,8 @@ The goal of this blog is to give me a space to detail my explorations as an effo
 Currently, learning how to use Jekyll and remembering Markdown is quite a struggle, so I am posting links to both guides below for reference.
 
 [Github Markdown Guide][markdown]
+
 [Jekyll Docs][jekyll]
 
 [markdown]: https://guides.github.com/features/mastering-markdown/
-
 [jekyll]: http://jekyllrb.com/docs/home/
