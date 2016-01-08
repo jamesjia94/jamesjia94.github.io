@@ -1,6 +1,7 @@
 ---
 layout: post
 title:  "GitHub Pages and Domains"
+author: "James Jia"
 date:   2016-01-06 21:29:40 -0800
 tags:   dns records jekyll github pages
 ---
