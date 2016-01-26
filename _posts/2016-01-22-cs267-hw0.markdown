@@ -1,0 +1,44 @@
+---
+layout: post
+title:  "CS267 HW0 - Introduction"
+author: "James Jia"
+date:   2016-01-22 20:26:40 -0800
+tags:   CS267
+---
+## Biography
+I am a Masters of Engineering candidate with a concentration of data science and systems. I am working on porting [BIDData][biddata], a machine learning library that is GPU-optimized for single machines, onto Apache Spark, an open source cluster computing framework used for large-scale data processing. I am interested in distributed systems and the ways in which they are used to power real-world applications that we use in our day to day life. I am taking this class to understand, at a high level, how parallel computing algorithms work and be exposed to OpenGL/CUDA and GPUs, as there is a trend in big data processing to use GPU-accelerated hardware to perform many common machine learning algorithms.
+
+## GPU acceleration in Deep Learning
+Historically, the traditional recognition approach for images required manual extraction of features from the image data to be used by the classifier. One of the major problems with this approach is that people were forced to split their time between finding newer, better features and creating a better classifier.
+
+Data scientists then began to look for a way to have the machine also learn how to extract features from these images as well, rather than having them extracted through manual labor. This concept gave rise to Convolutional Neural Nets; its architecture is depicted in the following diagram.
+
+<img src="http://parse.ele.tue.nl/cluster/2/CNNArchitecture.jpg" alt="CNN Architecture"/>
+
+The general idea behind CNNs is that we want extract certain high-level features and properties about the samples that we have. For example, with a CNN that is trained on recognizing people, we would like the CNN to extract features about a human's general shape - the fact that we have a head, neck, shoulders, torso, legs and feet - and the shades of color and textures. Each convolutional layer creates new features from its inputs, learning about how to detect colors, shapes, or textures. The convolutional layers often have a pooling layer inbetween. Intuitively, the pooling layers help in generalizing the generated features from the previous convolutional layer by desensitizing slight changes in the time or space domain. For example, an edge detector should still detect an edge no matter if the edge is perfectly aligned or slightly slanted, and a change in color is still a change in color no matter if the change occured slightly earlier or slightly later.
+
+Unfortunately, CNNs are not without its own problems. Due to the large number of parameters that need to be fine-tuned, CNNs require an extremely large dataset size in order to give good predictions. This also means that CNNs take a notoriously long time to train. However, we can accelerate the training time by making some smart observations. First, the training of these neurons is largely bounded by the speed of computing floating point operations. Second, these CNNs are instantiated from a large number of identical neurons. Lastly, within each training iteration, the floating point calculations are largely independent from each other. This intrinsic parallelism maps very well to the use of GPU computation.
+
+Moreover, we can further exploit parallelism by parallelizing our data and our model as well. In 2014, [Krizhevsky from Google][krizhevsky] proposed an algorithm that uses model parallelism in the fully connected layers and data parallelism in the convolutional layers. In doing so, it was able to have a 6.25x speedup through the use of 8 GPUs with properly tuned mini-batch sizes, compared to a baseline of using a single GPU.
+
+The idea of using GPUs to perform machine learning tasks, especially those involving Deep Neural Networks, has been a great success. When we look at [the results from the ImageNet Large Scale Visual Recognition Challenge][imagenet], more and more teams are adopting GPUs to carry out the computationally intensive portions of machine learning.
+
+<img src="http://devblogs.nvidia.com/parallelforall/wp-content/uploads/sites/3/2014/09/imagenet_gpu_adoption1.png" alt="Adoption of GPUs in ImageNet Challenge">
+
+There are a plethora of machine learning tools and libraries suited for creating high performance CNNs. [Caffe][caffe] is a leading deep learning framework that is developed by people right here in Berkeley! NVIDIA also created NVIDIA cuDNN, a GPU-accelerated library that provides fine-tuned implementations of convolutions, pooling, and other routines that are used by deep learning models. [CUDA-convnet][cuda-convnet] provides a high performance C++/CUDA implementation of CNNs.
+
+
+## References
+[1] L.  Brown, "Accelerate Machine Learning with the cuDNN Deep Neural Network Library", NVIDIA, 2014. [Online]. Available: http://devblogs.nvidia.com/parallelforall/accelerate-machine-learning-cudnn-deep-neural-network-library/.  
+[2] Krizhevsky, A. One weird trick for parallelizing convolutional neural networks. CoRR, abs/1404.5997, 2014.  
+[3] Alex Krizhevsky, Ilya Sutskever, and Geoffrey E Hinton.
+Imagenet classification with deep convolutional
+neural networks. In NIPS, volume 1, page 4,
+2012.  
+[4] J.  Ward, S.  Andreev, F.  Heredia, B.  Lazar and Z.  Manevska, "Efficient mapping of the training of Convolutional Neural Networks to a CUDA-based cluster", Parse.ele.tue.nl, 2016. [Online]. Available: http://parse.ele.tue.nl/education/cluster2.
+
+[biddata]: https://github.com/BIDData
+[caffe]: http://caffe.berkeleyvision.org/
+[cuda-convnet]: https://github.com/dnouri/cuda-convnet
+[krizhevsky]: http://arxiv.org/pdf/1404.5997v2.pdf
+[imagenet]: http://blogs.nvidia.com/blog/2014/09/07/imagenet/
