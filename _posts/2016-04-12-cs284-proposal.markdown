@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "284 Final Project Proposal: Position Based Fluid Simulation"
+title:  "CS284 Final Project Proposal: Position Based Fluid Simulation"
 author: "James Jia, Michelle Nguyen"
 date:   2016-04-12 21:01:00 -0800
 ---
