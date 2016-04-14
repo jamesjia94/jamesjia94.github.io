@@ -1,0 +1,38 @@
+---
+layout: post
+title:  "284 Final Project Proposal: Position Based Fluid Simulation"
+author: "James Jia, Michelle Nguyen"
+date:   2016-04-12 21:01:00 -0800
+---
+### Summary
+We are going to implement particle fluid simulation using Position Based Dynamics, which enforces constraints on incompressibility and implements an artificial pressure term to simulate surface tension and improve particle distribution.
+
+### Background
+Fluids, especially water, are common to everyday scenes, ranging from the ocean to a glass of water. However, fluids are difficult to simulate, as they can not be modeled as simple solid objects. This difficulty is compounded by the fact that enforcing incompressability constraints is computationally intensive, making it difficult to render fluid motion in real time. The method that we are implementing uses Newton’s forward interpolation method to iteratively update the fluid velocity, allowing for larger timesteps more suited towards real-time applications. 
+
+References:  
+[Position Based Fluids](http://mmacklin.com/pbf_sig_preprint.pdf)   
+[Position Based Dynamics](http://matthias-mueller-fischer.ch/publications/posBasedDyn.pdf)
+
+### Computing Resources 
+Mac OSX 10.10.5  
+https://www.opengl.org/
+
+### Goals and Deliverables
+**What we plan to deliver**:  
+We plan to implement particle fluid simulation in OpenGL, enforcing incompressibility, vorticity confinement, and viscosity constraints. We will generate screenshots and videos of our simulation in various scenes, including scenes containing other models which the particles will interact with. The simulation will be evaluated on its render time and similarity to real fluids.
+
+**What we hope to deliver**:  
+To enable interactivity, we hope to use Cuda. This will allow us to render the simulation in real time and incorporate interactions, such as moving particles on a mouseover. We also hope to simulate fluids with other properties by altering the simulation’s properties (e.g. viscosity, fluid tension).
+
+### Schedule
+**Week of 4/18**  
+Mon: Basic fluid simulation which enforces incompressibility  
+Weds: tensile instability  
+
+**Week of 4/24**  
+Mon: Vorticity confinement and viscosity  
+Weds, if time: incorporate Cuda and different fluid properties  
+
+**Week of 5/2**  
+Mon & Weds: Presentation and final report preparation
