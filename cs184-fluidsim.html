@@ -1,0 +1,644 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<link rel="stylesheet" type="text/css" href="custom-style.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<!-- Bootstrap core CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+<!-- Bootstrap theme CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+<!-- Bootstrap JS -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+<!-- prettyprint -->
+<script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<style type="text/css">
+pre.prettyprint {
+    border: 1px solid #ccc;
+    margin-bottom: 0;
+    padding: 9.5px;
+  }
+body {
+  font-size: 16px;
+}
+</style>
+<!-- MathJax -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+</script>
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_CHTML">
+</script>
+<style>
+    div.padded {
+      padding-bottom: 50px;
+    }
+</style>
+
+<title>Fluid Simulation | James Jia, Michelle Nguyen, Angela Hsueh | CS 184</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+</head>
+
+<body>
+<br />
+<h1 align="middle">Final Project: Fluid Simulation</h1>
+<h2 align="middle">James Jia, Michelle Nguyen, Angela Hsueh</h2>
+
+<br><br>
+<img align="middle" src="img/fluidsim_10000_final_slower.gif" alt="Fluid Simulation 10000 particles"
+      style="display: block;margin-left: auto;margin-right: auto;z-index: 1;">
+<p align="middle">Simulating 10,000 fluid particles.</p>
+<br><br>
+
+<div class="container padded">
+  <h2>Abstract</h2>
+
+  <p>Rendering and simulating fluid dynamics is a costly process that has been explored throughout the field of graphics. In this paper, we implement <a href="http://mmacklin.com/pbf_sig_preprint.pdf"><em>Position Based Fluids</em></a>, treating fluids as a set of particles which interact and move at various velocities, determined by constraints such as incompressibility and vorticity. To render fluid simulations with a large number of particles in real-time, we also implement these methods in CUDA. We also attempt to perform surface reconstruction of these particles using <a href="http://developer.download.nvidia.com/presentations/2010/gdc/Direct3D_Effects.pdf"><em>Screen Space Fluid Rendering</em></a>, which does not need to use any meshes. Finally, to bring another dimension to the render, we try to incorporate user interaction with the fluid via clicking and dragging.</p>
+
+  <h2>Implementation</h2>
+  <h3>Module Overview</h3>
+  <p>Our system consists of three components. The first, main component runs in a continuous loop to determine the new position for each particle at the next time step, based on constraints between its neighboring particles. The second component handles mouse and keyboard input to allow for interaction with the simulation. This includes two parts: a camera which allows a user to move within the scene and view the simulation through different perspectives, and an attempt to provide direct manipulation of the fluid such that the user can freely move particles within the scene. Finally, the last component is an (unsuccessful) attempt to reconstruct the fluid surface from its particles.  </p>
+  <h3>Fluid Dynamics</h3>
+  During each iteration, a sequence of constraints are applied to determine each particle's position for the next time step. We break this sequence up into three main sections.
+  <pre class="prettyprint">
+  1.    for all particles i do
+          apply forces v_i ⇐ v_i +∆t(f_{ext})(x_i)
+          predict position x*_i ⇐ x_i +∆t(v_i)
+        end for
+  2.    for all particles i do
+          find neighboring particles N_i(x*_i)
+        end for
+  3ab.  while iter < solverIterations do
+          for all particles i do
+            calculate λ_i
+          end for
+          for all particles i do
+            calculate ∆p_i
+            perform boundary and response
+          end for
+          for all particles i do
+            update position x*_i ⇐ x*_i + ∆p_i
+          end for
+        end while
+  3c.   for all particles i do
+          update velocity v_i ⇐ (1/∆t)(x*_i − x_i)
+          apply vorticity confinement and XSPH viscosity
+          update position x_i ⇐ x*_i
+        end for
+  </pre>
+  <br>
+  <h4>1. Applying External Forces</h4>
+  The first step of each iteration is to apply any external forces and predict where the particle will move next according to its velocity. This velocity is informed by gravity and the forces acting upon the particle due to its constraints, such as vorticity and viscosity, from the previous iteration. The velocity is calculated using the one of the simple kinematics physics equations, where $t$ is a very small time delta:
+  <center>
+    $$v = v_0  + at$$
+  </center>
+
+  From the velocity, we can use a similar equation to find the particle's predicted position:
+  <center>
+    $$p = p_0  + vt$$
+  </center>
+  <br>
+  <img align="middle" src="img/fluidsim_1000_bounce_nolambda_novort.gif" alt="Fluid Simulation 1000"
+        style="display: block;margin-left: auto;margin-right: auto;z-index: 1;" width="500" height="500" >
+  <p align="middle">This shows 1000 particles. The particles fall due to gravity and collide with each other, but do not exert forces on each other.</p>
+  <br>
+
+  <h4>2. Finding Neighboring Particles</h4>
+  <p>Before determining the forces acting upon each particle based on its new position, we must find its neighboring particles. To do this efficiently, we created a grid of our bounding box with a spacing of $h$, the cutoff distance for a particle's neighbor. $h$ is usually set as between [1, 2] times the average particle distance. Since we set the particle density to be 1000 particles per unit cube, our average distance between particles is $0.1$ units. We chose $h$ as $1.5$. This grid is represented by an array of bins, where each bin is essentially a class referencing an array of particles. Each particle is inserted into a bin according by $floor (\frac{\text{position}}{h})$. Now, neighbors can quickly be found in $O(N)$ time by finding the particle's corresponding bin, then checking if particles in the 27 adjacent bins (including the current bin itself) are less than a distance of $h$ away.</p>
+  <br>
+  <h4>3. Calculate Particle Forces</h4>
+  <p>Given the particle's position and its neighbors, we can determine the forces acting on the particle.</p>
+  <h5>3a. Incompressibility </h5>
+  To be incompressible, a fluid must maintain a constant density. To do this, we must assure that the position of each particle at every iteration is such that the particle's density is as close to rest density as possible. First, we must find the current density of each particle, which is determined by the positions of the particle and its neighbors. This is done by using the SPH density estimator, where $W$ represents a kernel and $h$ is the cutoff distance for a particle's neighbors:
+  <center>
+    $$\sum_j W (p_i - p_j, h) $$
+  </center>
+  This estimator sums up the difference in position from a particle to its neighbors, weighted by a kernel. We use a <a href="#poly6">Poly6 kernel</a>, as with Müller et al.
+  </br>
+  Knowing each particle's density, Position Based Dynamics applies a constraint to each particle, where the constraint is a function between each particle and its neighbors. The particle's position should change such that the constraint $C$ between this particle and its neighbors still equals to 0. This solution to these constraints can be approximated using <a href="#newton">Newton steps</a>:
+  <center>
+    $$C(p + \Delta p) \approx C(p) + \nabla C ^T \nabla C \lambda = 0$$
+  </center> 
+  The <a href="#gradient">gradient</a> of a constraint function with respect to the particle and the other particles is defined by the following, where the kernel used in this case is the <a href="#spiky">Spiky Kernel</a>: 
+  <center>
+    $$ \nabla_{p_k}C_i = \frac{1}{\rho_0} \sum_j \nabla_{p_k} W(p_i - p_j, h)$$
+  </center>
+  Plugging this into our approximation, and solving for lambda gives:
+  <center>
+    $$ \lambda_i = -\frac{C_i(p_1,...,p_n)}{\sum_k |\nabla_{p_k}C_i|^2}$$
+  </center>
+  However, the denominator of this equation becomes unstable when particles are close to separating. We regularize the constraint using constraint force mixing, a concept of differential equations which improves accuracy by adding a relaxation parameter to the diagonal of a matrix. This gives us:
+  <center>
+    $$\lambda_i = -\frac{C_i(p_1,...,p_n)}{\sum_k |\nabla_{p_k}C_i|^2 + \epsilon}$$
+  </center>
+  Our final position update for a particle $i$ is thus:
+  <center>
+    $$\Delta p_i = \frac{1}{\rho_0} \sum_j (\lambda_i + \lambda_j) \nabla W (p_i - p_j, h)$$
+  </center>
+  We update each particle's position accordingly. We clamp each particle's position to be within the bounding box.
+
+  <h5>3b. Tensile Instability </h5>
+  When a particle has too few neighbors, it may result in a negative pressure and cause particles to clump together. One solution, which adds the effect of surface tension, is to add an artificial pressure to the smoothing kernel in order to repulse particles. This corrective term is described by Monaghan, and is then added to our position update:
+  <center>
+   $$s_{corr} = -k \Bigg( \frac{W(p_i - p_j, h)}{W(\Delta q, h)} \Bigg)^n$$
+   $$\Delta p_i = \frac{1}{\rho_{0}} \sum_j (\lambda_i + \lambda_j + s_{corr}) \nabla W (p_i - p_j, h)$$
+  </center>
+  Here, $\Delta$q is a fraction of our neighbor cutoff distance(h), and k and n are small constants. We use $k = 0.001, n = 4$, and $\Delta$q $= 0.01*h$ by empirically testing values that made the simulation look most natural.
+  <h5>3c. Vorticity Confinement</h5>
+  When using position based methods, an excess amount of energy may be lost and result in damping. For a given position, vorticity describes the tendency for the fluid to spin. If fluid at a point is spinning, the more likely it is to remain in that position, rather than moving with the flow. By confining this vorticity, we increase the likelihood of a particle to move from its position and generate more energy. This also allows for sharper changes in a particle's pressure, density, and velocity, thereby leading to more turbulence within the simulation.
+  </br>
+  We confine vorticities by applying a corrective force. To do so, we first must estimate the particle's vorticity. This is done using the following equation:
+
+  $$\omega_{i} = \sum_j v_{ij} \times \nabla{p_j} W (p_i - p_j, h)$$
+  </center>
+  Afterwards, we can calculate the corrective force:
+  <center>
+    $$f_{vort} = \epsilon \Bigg(\frac{\nabla|\omega_i|}{|\nabla|\omega_i||} \times \omega_i \Bigg)$$
+
+  </center>
+  </br>
+  However, confining the vorticity may result in some unnatural oscillations. We can apply slight damping by introducing viscosity to the fluid. The viscosity of a fluid describes how thick a fluid appears, and how likely the particles appear to stick. We update each particle's velocity as so:
+  <center>
+    $$v_i^{new} = v_i + c\sum_jv_{ij} W(p_i - p_j, h))$$
+  </center>
+  <p>We use $c = 0.01$, as suggested by Müller et al.</p>
+  <br>
+  <div class="row">
+    <div class="col-md-6">
+      <img align="middle" src="img/fluidsim_1000_nolambda.gif" alt="Fluid Simulation 1000"
+          style="display: block;margin-left: auto;margin-right: auto;z-index: 1;" width="500" height="500" >
+      <p align="middle">This shows 1000 particles with no vorticity or viscosity. The particle movement is very dampened.</p>
+    </div>
+    <div class="col-md-6">
+      <img align="middle" src="img/fluidsim_1000_allforces.gif" alt="Fluid Simulation 1000"
+        style="display: block;margin-left: auto;margin-right: auto;z-index: 1;" width="500" height="500">
+      <p align="middle">This shows 1000 particles with vorticity and viscosity.  There is more movement in the fluid since we have added energy back into the system by introducing vorticity.</p>
+    </div>
+  </div>
+  <br>
+
+  <h2>Final Result</h2>
+  <img align="middle" src="img/fluidsim_10000_final_slower.gif" alt="Fluid Simulation 10000 particles"
+        style="display: block;margin-left: auto;margin-right: auto;z-index: 1;">
+  <p align="middle">Simulating 10,000 fluid particles.</p>
+  <br>
+
+  <h4>Particle Appearance</h4>
+  While implementing fluid dynamics, we originally used simple, square red points to represent our particles. Since we could not implement surface reconstruction at the time, we decided to make the particles appear more particle-like by rendering them as point spheres. This only required making changes to the fragment shader. We first got the normal of the point from the texture coordinates and calculated the diffuse lighting, given an arbitrarily chosen light direction. We also added specular lighting to give the particle sphere an extra shine.
+  </br>
+  At this point, we had many spherical particles, all of which were the same shade of blue. We added more depth to the scene by changing the color of each particle according to its velocity. Since water at greater velocities was more likely to be foam, we made particles at higher velocities whiter. However, we wanted to be able to do this in a systematic way. To do so, we got a fraction proportional to the magnitude of the particle's velocity:
+  <center>
+    $$s = (\frac{1}{vel_x^2+vel_y^2+vel_z^2})^2$$
+  </center>
+  <p>We wanted $1 - s$ to be equal to the particle's lightness. Thus, the smaller the velocity, the greater the $s$, and the darker the particle. To programatically change the particle's lightness, we converted the our base color blue from RGB to HSL space. We set $L$, the lightness, to $1 - s$, then converted it back to RGB space to be the new color of our particle. </p>
+
+  <h3>CUDA</h3>
+  <p>Fluid simulation, and particle simulation in general, maps very well to the type of workload that one would want to put onto the GPU. Since we can view fluid simulation as a series of stages and each stage only depends on information from the previous stage (that is, there is no synchronization necessary between particles within each stage), fluid simulation turns out to be embarrassingly parallel!</p>
+  <p>CUDA code runs on the GPU. A lot of the work to convert CPU code into GPU code lies in figuring out how to properly manage the GPU memory layout. However, at a high level, the processing flow is deceptively simple. <pre>
+1. Copy input data from CPU memory to GPU memory.
+2. Load the GPU code and execute it. (caching data as necessary)
+3. Copy results from GPU memory back to CPU memory.</pre></p>
+<br>
+  <h4>A Refresher</h4>
+  <p>GPU parallelism occurs in two ways: parallel blocks and parallel threads. Each block can run multiple threads, and the GPU supports the launching of multiple blocks. Within each block, threads can share data through their shared on-chip memory, which acts like a cache for global GPU memory. To invoke a kernel function in parallel, one uses <code>kernel_function &lt;&lt;&lt; N blocks, N threads &gt;&gt;&gt;</code>. And within kernel function, each thread can access its respective object via: <code>int index = threadIdx.x + blockIdx.x * THREADS_PER_BLOCK</code></p>
+  <p>One of the trickier things is to remember that <b>host</b> memory and <i>device</i> memory are completely separate entities. That means that any pointers in CPU memory which are copied to GPU memory will no longer be valid (cannot be dereferenced), and vice versa. This represents a problem for our datastructures, as each particle has a list of neighboring particles references, which, when copied, will no longer be valid pointers! More on this in the next section.</p>
+  <br>
+  <h4>Converting CPU to GPU code</h4>
+  <p>In our application, we replaced all of our fluid simulation code with the GPU kernel equivalents. Since we wrote the CPU code with converting to CUDA in mind, this was a rather simple process. As mentioned in the previous section, the challenge was in figuring out how to modify the particle data structure to support CUDA. Although there were several potential remedies, we chose a solution that resulted in the least amount of changes to the data structure itself since we wanted to rewrite as little of the CUDA kernels as possible.</p>
+  <div class="row">
+    <div class="col-md-6">
+      <pre class="prettyprint">class Particle {
+public:
+    vec3 position;
+    vec3 pred_position;
+    vec3 delta_position;
+    vec3 velocity;
+    vec3 vorticity;
+    vec3 externalForce;
+    vec4 color;
+    Bin&lt;Particle*&gt; neighbors; // list of particle references
+    float lambda;
+    int id;
+    static const int size = 3;
+};
+</pre>
+      <figcaption>Original Particle Structure</figcaption>
+    </div>
+    <div class="col-md-6">
+      <pre class="prettyprint">class Particle {
+public:
+    vec3 position;
+    vec3 pred_position;
+    vec3 delta_position;
+    vec3 velocity;
+    vec3 vorticity;
+    vec3 externalForce;
+    vec4 color;
+    Bin&lt;int&gt; neighbors; // The int represents the index
+                   //  of the neighbor in the particles array
+    float lambda;
+    int id;
+    static const int size = 3;
+};
+</pre>
+      <figcaption>Converted Particle Structure</figcaption>
+    </div>
+  </div>
+  <br>
+  <br>
+  <div class="row">
+    <div class="col-md-6">
+      <p>However, this meant that we still kept the <code>Bin</code> data structure! The Bin class is just a wrapper around an array of elements, represented by a pointer to a <code>malloced</code> memory location. As we've mentioned earlier, this pointer isn't a valid memory location in device code! Unfortunately, the naive solution of copying the particle over to the GPU and then modifying that particle's bin's elem address with a GPU memory location does not work. This is because, since the copied particle resides in GPU memory, we can't modify its fields!</p>
+    </div>
+    <div class="col-md-6">
+      <pre class="prettyprint">template <class T>
+class Bin {
+public:
+    T* elements;
+    int size;
+    int capacity;
+};
+</pre>
+    </div>
+  </div>
+  <figcaption>Flawed pseudocode</figcaption>
+  <pre class="prettyprint">Particle* device_particles; // device pointer to array of particles
+cudaMemcpy(device_particles, particles, cudaMemcpyHostToDevice) // copy particles to device particles</pre>
+<br>
+  <p>Instead, we first need to create a temporary intermediary host pointer to a list of particles, where each particle's neighbors array points to a memory address in GPU memory! Then, we can proceed to <code>cudaMemcpy</code> this intermediary structure onto GPU memory. Why does this work? Well, the host pointer lives in CPU memory, so we can readily modify its members as usual. The tricky part is we are also allowed to have its members point to GPU memory, <b>as long as we do not dereference in CPU code</b>.
+  </p>
+  <pre class="prettyprint">Particle* device_particles; // device pointer to array of particles
+Particle* host_particles = (Particle *) malloc(sizeof(Particle) * NUM_PARTICLES); // host pointer to array of particles
+for (int i=0; i&lt;NUM_PARTICLES; i++) {
+    // copy particles from CPU to intermediary
+    host_particles[i].copy((*particles)[i]);
+    // set neighbor array to point to GPU memory
+    cudaMalloc(&(host_particles[i].neighbors.elements), sizeof(int) * (*particles)[i].neighbors.size));
+    // copy the neighbor indices over to the allocated GPU array
+    cudaMemcpy(host_particles[i].neighbors.elements, (*particles)[i].neighbors.elements, cudaMemcpyHostToDevice);
+}
+cudaMemcpy(device_particles, host_particles, cudaMemcpyHostToDevice) // copy particles to device particles</pre>
+  <br>
+  <h4>Benchmarks</h4>
+  <div id="cuda-benchmarks"></div>
+  <p>As you can see, as the number of particles to render increases, the GPU accelerated fluid simulation performs much better than the sequential variant. Even so, it is surprising to see that speedup isn't an order of magnitude faster than the CPU variant. Let's profile the code to see what is taking so long.</p>
+  <div id="cuda-breakdown-4000"></div>
+  <div id="cuda-breakdown-8000"></div>
+  <div id="cuda-breakdown-16000"></div>
+  <p>From these results, we see that the majority of the time is spent calculating the fluid simulation, especially as we increase the number of particles. This is very likely due to not having taken advantage of the shared memory in each thread block. Although global memory isn't <em>too</em> slow when it comes to reads, it is terribly sub-optimal for writes. However, this is more of a prediction rather than fact, so, if we had more time, we would profile our kernel to see where the bottleneck is.</p>
+  <p>There is also an opportunity for future work in terms of minimizing the other costs, specifically GPU allocation and GPU deallocation time. CUDA's runtime library has OpenGL interoperability that we should take advantage of. At a high level, we can specifically bind the OpenGL buffers to GPU memory used by CUDA, and thus eliminate the overhead from constantly allocating and deallocating GPU memory as well as copying from the GPU to the CPU and vice versa. With these optimizations, it is very likely to achieve real-time rendering with over 100,000 particles, opening up entire new realms of user interactivity.</p>
+
+  <h3>Interaction</h3>
+  <h4>Camera</h4>
+  We implemented a simple camera module to allow a user to view the simulation at different angles. To do so, we enabled OpenGL's mouse and keyboard callbacks, registering them to the corresponding functions. A user may </em>pan</em> around the scene using keyboard input (specifically, WASD for forward, left, backward, and right, respectively). They may also choose to <em>rotate</em> around the scene by <em>right</em> clicking and dragging toward the direction they wish to rotate. Finally, they may <em>zoom</em> in and out of the scene using mouse scrolling.
+  </br>
+  </br>
+  <center>
+    <table>
+      <tr style="background-color:#000000">
+        <td>
+          <img src="img/panning.gif" height="250px">
+        </td>
+        <td>
+          <img src="img/rotating.gif" height="250px">
+        </td>
+        <td>
+          <img src="img/scaling.gif" height="250px">
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <center>Panning, keyboard input</center>
+        </td>
+        <td>
+          <center>Rotating, mouse drag</center>
+        </td>
+        <td>
+          <center>Zooming, mouse scroll</center>
+        </td>
+      </tr>
+    </table>
+  </center>
+  </br>
+  To encapsulate the camera functionality, we created a Camera class which stores the camera's position (the eye), where the camera is looking (the center), which vector represents "up" in the scene, and the camera's current pitch and yaw. The camera is initialized at a few steps away from the center of the simulation. When panning around the screen, the camera's position is incremented or decremented toward the specified direction, but its center remains the same. Rotation is slightly more complicated. We update the camera's yaw and pitch variables according to the magnitude and direction of the user's mouse drag, which translates to changes to the camera's center. The coordinates of the camera's new center can be determined through trigonometry:
+  <center>
+    $$x = cos(pitch) * cos(yaw)$$
+    $$y = sin(pitch)$$
+    $$z = cos(pitch) * sin(yaw)$$
+  </center>
+  OpenGL's lookAt matrix provides a viewing transform matrix given the camera's eye, center, and up vectors.
+  </br>
+  Zooming is implemented by using a simple scaling matrix. The scaling factor of this matrix is proportional to the amount the user has scrolled. To apply the effects of panning, rotation, and zoom to our scene, we simply multiply the vertex positions in our modelspace by the matrices:
+  <center>
+    $$lookAt * scaling * modelspace$$
+  </center>
+  <h4>Direct Manipulation</h4>
+  However, although the user can now move around the scene, it still lacks true interactivity. We hoped to allow the user to select particles in the scene and apply forces by <em>right</em> clicking and dragging with the mouse. At first, this problem appeared to be the inverse of the camera implementation. Given screen points from the mouse's position, we wanted to determine their coordinates in model space. First, given the x and y positions of the mouse, we transformed these into modelspace, which maps the positions from -1 to 1:
+  <center>
+    $$x_{NDC} = \frac{x - (winWidth/2)}{winWidth/2}$$
+    $$y_{NDC} = \frac{winHeight - y - (winHeight/2)}{winHeight/2}$$
+  </center>
+  However, as our mouse coordinates are 2D, we must determine the z coordinate through other means. To do that, we use the depth buffer, which returns the depth of a point on the screen given some coordinates in screen space. We can convert this depth to a z coordinate, knowing the values of our near and far clipping planes:
+  <center>
+    $$z = depth * (far - near) + near$$
+  </center>
+  Now, we can simply convert our NDC coordinates by multipying by the inverse of our camera matrix. However, due to the objects being at a distance, the coordinates we received were too imprecise to select particles until panning very closely to the individual particles within the scene. From here, we could pass the converted coordinate to the neighbor grid to get a list of all particles within that area. We apply an external force in the x and y directions to each particle according to the amount the user has dragged the mouse. However, we found that our methods were still very imprecise and we were unable to select the actual particles underneath the user's mouse. We then discovered that methods for selecting objects within the scene at various depths were slightly more complicated. Popular methods include using color picking, or ray picking (not as optimal for a scene with many objects, such as our particles).
+  </br>
+  </br>
+  <center>
+    <table>
+      <tr>
+        <img src="img/direct_manip.gif"/>
+      </tr>
+      <tr>
+        <td>Mouse drag upwards, red particles indicate the particles which were actually selected.</td>
+      </tr>
+    </table>
+  </center>
+  <h3>Surface Reconstruction</h3>
+  <p>Surface reconstruction is a challenging problem.  Up until now, we have modeled fluids as particles and implemented particle movement using fluid dynamics.  Rendering the particles as a surface is an entirely new can of worms.  Now that we have a set of particles, the challenge lies in generating a surface from the particles in a smooth way, creating a 2D surface from the 3D particles.  Some methods, such as 3D Marching Cubes, generate triangle meshes along the iso-surfaces.  However, these methods are computationally expensive and memory intensive.
+  </p>
+
+  <p>A different way of rendering surfaces is described by Matthias Muller et al. in <a href="http://matthias-mueller-fischer.ch/publications/screenSpaceMeshes.pdf"><em>Screen Space Meshes</em></a>.  This paper presents a new method of creating a 2D triangle mesh and projecting it back into world space for a 3D mesh.  First, for each grid in the 2D grid of the screen space, determine the depth of the frontmost particle from the camera to the grid node, and project the position of the particle into screen space.  Smooth the depth values so that the depth map is less bumpy.  Detech where there could be silhouettes based on the depth values, and smooth the silhouettes as well.  Then, generate a mesh of triangles from the depths by generating vertices for depths that are non-infinite.  Finally, project the triangle mesh back into world space and render the triangle mesh as usual in the standard graphics pipeline.</p>
+
+  <p>The paper, <a href="http://www.rug.nl/research/portal/files/14497408/05c5.pdf"><em>Screen Space Fluid Rendering with Curvature Flow</em></a>, describes a splatting-based fluid rendering algorithm that calculates surface depth and thickness.  This is the approach that is described in presentation at the Game Developers Conference by NVIDIA called <a href="http://developer.download.nvidia.com/presentations/2010/gdc/Direct3D_Effects.pdf"><em>Screen Space Fluid Rendering for Games</em></a>.  The benefit of this approach is that the method only generates the surface closest to the camera since the algorithm first calculates the surface depth of particles that have been rendered as spheres.  Next, smooth the depths, so that we do not see a blobby, jelly-like surface.  Van der Laan's paper describes a Curvature Flow method to smooth out surfaces in a way that is better than Gaussian blurs or Bilateral Gaussian filters.  Gaussian blurs indiscriminately smooths things out, so particles may blend into something in the background.  Thus, we want something that is smart enough to detect edges.  Bilateral filtering preseves edges, but is more computationally expensive.
+  </p>
+
+  <pre>
+    High-level algorithm
+      1. Generate depth of particles that are rendered as spheres.  Write this to a buffer.
+      2. Smooth the depths by using Gaussian bilateral blur.  This will reduce bumpiness for smoother surfaces.
+      3. Use surface normals to shade the surface as usual with Diffuse and Specular shading.
+      4. Add reflection.
+      5. Calculate thickness.
+      6. Use thickness to vary color by depth for transparent liquids.
+  </pre>
+
+  <p>Angela attempted to implement this surface reconstruction, but unfortunately, was not able to get the code to work.  The challenging part of this was working with OpenGL shaders and debugging what was happening in the shaders.  When the code was incorrect, the screen was blank, offering very few clues as to the root cause of the problem.</p>
+
+
+  <h2> Lessons Learned </h2>
+  <ul>
+    <li>Moving to a CUDA architecture does not guarantee a significant speedup. It often requires a considerable amount of time and tweaking in order to achieve proper memory management.</li>
+    <li>CUDA's interoperability API with OpenGL exists, and alleviates the problem of having to copy memory back and forth between the CPU and GPU.</li>
+    <li>Mapping from 2D to a 3D space is difficult! The easiest method is essentially a hack. Other methods require sending a ray through the scene, similar to the technique we learned in class for ray tracing. </li>
+    <li>Parameters for fluid simulation require quite a bit of tuning, despite understanding the math behind the different constraints and properties. Sometimes the best you can do is reason through the problem you're having and keep changing parameters until it looks correct.</li>
+  </ul>
+  <h2>Math Appendix</h2>
+  <h3>A. Kernels</h3>
+  Kernel smoothing is a method to estimate a non-parametric function through a series of observations. Different kernels produce outputs with different properties. For fluid simulation, we use two kernels, suggested by Müller et al., for estimating density and calculating gradients. However, in general, other kernels may be used, as long as it is:
+  <ol>
+    <li>Even and normalized</li>
+    <li>Zero at boundaries, to ensure stability</li>
+  </ol>
+  <h4><a name="poly6">i. Poly6 Kernel</a></h4>
+  The poly6 kernel is designed by Müller et al. specifically for estimating particle density in SPH.
+  <center>
+    $$\text{When } 0 \leq r \leq h$$
+    $$W_{poly6}(r, h) = \frac{315}{64 \pi h^9} (h^2 - r^2)^3$$
+    $$\text{Otherwise, } W_{poly6}(r, h) = 0$$
+  </center>
+  The poly6 kernel satisfies the conditions of being even, normalized, and zero at the boundaries. However, this kernel is mainly used because of its efficiency with distance computations, due to its $r^2$ term. Thus, it is a perfect fit for estimating density. However, it is a poor fit for pressure estimations due to its zero center.
+  <h4 name="spiky"><a name="spiky">ii. Spiky Kernel</a></h4>
+  The spiky kernel, created by Debrun is defined by:
+  <center>
+    $$\text{When }0 \leq r \leq h$$
+    $$W_{spiky}(r, h) = \frac{15}{\pi h^6} (h - r)^3$$
+    $$\text{Otherwise, }W_{spiky}(r, h) = 0$$
+  </center>
+  The spiky kernel has a non-zero gradient at its center. This is useful when computing particle pressure, since the non-zero gradient creates repulsive forces between two close particles. Otherwise, the repulsion between particles will disappear at closer proximities, which is the case with the poly6 kernel.
+  <h3><a name="gradient"> B. Gradient </a></h3>
+  The gradient is the slope of the tangent of a given function and points toward the greatest rate of increase for the function. It is essentially the derivative, except for higher-dimension functions. To calculate the gradient, partial derivatives are taken for each of the function's components. Thus, given a $n$ dimensional function, 3D in our case, the gradient is a vector of size $n$.
+  <h3><a name="newton"> C. Newton's Method</a></h3>
+  Newton's method is an iterative method to find a function's roots (solving for $f(x) = 0$). Thus, we use it in fluid simulation to optimize for the density constraint and determine a particle's optimal change in position. Newton's method begins with an initial guess for the root. It then makes the next guess based on the previous guess and the gradient of the function at that previous guess. The method continues iterating until a sufficient value is reached. For an n-dimensional function, Newton's update method is as follows:
+  <center>
+    $$x_{n+1} = x_n - [Hf(x_n)]^{-1} \nabla f(x_n)$$
+  </center>
+  Here, $H$ represents the Hessian matrix which is a matrix for the second-order partial derivatives of a function.
+  <h2>References</h2>
+  <ul>
+    <li>Miles Macklin and Matthias Müller.  Position based fluids. <em>ACM Trans.Graph.</em>, 32(4):104:1–104:12, July 2013. </li>
+    <li> Matthias  Müller, David Charypar, and Markus Gross. Particle-based fluid simulation for interactive applications. In Proceedings of the 2003 ACM  SIGGRAPH/Eurographics Symposium on Computer Animation, SCA ’03, pages 154–159, Aire-la-Ville, Switzerland, Switzerland, 2003. Eurographics Association </li>
+    <li>Matthis Müller, Simon Schirm, and Stephan Duthaler.  Screen Space Meshes. Eurographics/ ACM SIGGRAPH Symposium on Computer Animation (2007)</li>
+    <li>Wladimir J. van der Laan, Simon Green, and Miguel Sainz. Screen Space Fluid Rendering with
+    Curvature Flow. In Proc. I3D 2009: The 2009 ACM SIGGRAPH Symposium on Interactive 3D Graphics and
+    Games, pages 91-98, 2009.</li>
+    <li>Simon Green. Screen Space Fluid Rendering for Games. Game Developers Conference. San Francisco, CA, USA, 2010. NVidia.</li>
+
+  </ul>
+  <h2>Contributions</h2>
+  <ul>
+    <li><em>James:</em> fluid simulation logic, CUDA implementation</li>
+    <li><em>Michelle:</em> particle appearance, interaction (camera, attempted direct manipulation)</li>
+    <li><em>Angela:</em> attempted surface reconstruction </li>
+  </ul>
+</body>
+
+<script type="text/javascript">
+$(function () {
+    $('#cuda-benchmarks').highcharts({
+        chart: {
+            type: 'line'
+        },
+        title: {
+            text: 'GPU vs CPU'
+        },
+        xAxis: {
+            type: 'logarithmic',
+            title: {
+                text: 'Number of Particles'
+            }
+        },
+        yAxis: {
+            title: {
+                text: 'Time (ms)'
+            }
+        },
+        tooltip: {
+            headerFormat: '<span style="font-size:10px">{point.key}</span><table>',
+            pointFormat: '<tr><td style="color:{series.color};padding:0">{series.name}: </td>' +
+                '<td style="padding:0"><b>{point.y:.1f} ms</b></td></tr>',
+            footerFormat: '</table>',
+            shared: true,
+            useHTML: true
+        },
+        plotOptions: {
+            column: {
+                pointPadding: 0.2,
+                borderWidth: 0
+            }
+        },
+        series: [{
+            name: 'CPU',
+            color: '#446711',
+            data: [[1000, 99], [2000, 200], [4000, 450], [8000, 973], [16000, 1800]]
+        }, {
+            name: 'GPU',
+            color: '#BF0B23',
+            data: [[1000, 71.5], [2000, 125], [4000, 200], [8000, 400], [16000, 730.8]]
+        }
+        ]
+    });
+
+    $('#cuda-breakdown-4000').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            type: 'pie'
+        },
+        title: {
+            text: 'CUDA Time Breakdown 4000 Particles'
+        },
+        tooltip: {
+            pointFormat: '{point.y}ms</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+                    style: {
+                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                    }
+                }
+            }
+        },
+        series: [{
+            name: '',
+            colorByPoint: true,
+            data: [{
+                name: 'Grid Setup',
+                y: 53
+            }, {
+                name: 'GPU alloc',
+                y: 104,
+                sliced: true,
+                selected: true
+            }, {
+                name: 'CPU to GPU',
+                y: 0.296
+            }, {
+                name: 'Fluid Sim',
+                y: 168
+            }, {
+                name: 'GPU to CPU',
+                y: 1.109
+            }, {
+                name: 'GPU free',
+                y: 55.2
+            }]
+        }]
+    });
+
+    $('#cuda-breakdown-8000').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            type: 'pie'
+        },
+        title: {
+            text: 'CUDA Time Breakdown 8000 Particles'
+        },
+        tooltip: {
+            pointFormat: '{point.y}ms</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+                    style: {
+                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                    }
+                }
+            }
+        },
+        series: [{
+            name: '',
+            colorByPoint: true,
+            data: [{
+                name: 'Grid Setup',
+                y: 114
+            }, {
+                name: 'GPU alloc',
+                y: 251,
+                sliced: true,
+                selected: true
+            }, {
+                name: 'CPU to GPU',
+                y: 1.685
+            }, {
+                name: 'Fluid Sim',
+                y: 556
+            }, {
+                name: 'GPU to CPU',
+                y: 1.19
+            }, {
+                name: 'GPU free',
+                y: 108
+            }]
+        }]
+    });
+
+    $('#cuda-breakdown-16000').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            type: 'pie'
+        },
+        title: {
+            text: 'CUDA Time Breakdown 16000 Particles'
+        },
+        tooltip: {
+            pointFormat: '{point.y}ms</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+                    style: {
+                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                    }
+                }
+            }
+        },
+        series: [{
+            name: '',
+            colorByPoint: true,
+            data: [{
+                name: 'Grid Setup',
+                y: 25
+            }, {
+                name: 'GPU alloc',
+                y: 50,
+                sliced: true,
+                selected: true
+            }, {
+                name: 'CPU to GPU',
+                y: 0.233
+            }, {
+                name: 'Fluid Sim',
+                y: 132
+            }, {
+                name: 'GPU to CPU',
+                y: 0.291
+            }, {
+                name: 'GPU free',
+                y: 26
+            }]
+        }]
+    });
+});
+</script>
+</html>
